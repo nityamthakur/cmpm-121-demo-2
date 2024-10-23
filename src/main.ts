@@ -8,13 +8,16 @@ document.title = APP_NAME;
 
 // Insert UI elements
 appContainer.innerHTML = ` 
-  <h1>${APP_NAME}</h1> 
+  <h1>${APP_NAME}</h1>
   <canvas id="artCanvas" width="256" height="256"></canvas>
   <button id="thinMarker">Thin Marker</button>
   <button id="thickMarker">Thick Marker</button>
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
   <button id="clearButton">Clear</button>
+  <button class="stickerButton" data-sticker="😀">Sticker 😀</button>
+  <button class="stickerButton" data-sticker="⭐">Sticker ⭐</button>
+  <button class="stickerButton" data-sticker="🎉">Sticker 🎉</button>
 `;
 
 interface Drawable {
@@ -73,6 +76,32 @@ class ToolPreview implements Drawable {
   }
 }
 
+class Sticker implements Drawable {
+    private x: number;
+    private y: number;
+    private sticker: string;
+    private isPreview: boolean;
+  
+    constructor(x: number, y: number, sticker: string, isPreview: boolean = false) {
+      this.x = x;
+      this.y = y;
+      this.sticker = sticker;
+      this.isPreview = isPreview;
+    }
+  
+    move(x: number, y: number) {
+      this.x = x;
+      this.y = y;
+    }
+  
+    display(ctx: CanvasRenderingContext2D): void {
+      ctx.font = "24px sans-serif";
+      ctx.globalAlpha = this.isPreview ? 0.3 : 1; // Apply opacity only for preview
+      ctx.fillText(this.sticker, this.x, this.y);
+      ctx.globalAlpha = 1; // Reset opacity
+    }
+  }
+
 const canvas = document.querySelector<HTMLCanvasElement>("#artCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
@@ -80,7 +109,8 @@ const paths: Drawable[] = [];
 const redoStack: Drawable[] = [];
 let currentLine: MarkerLine | null = null;
 let currentThickness: number = 2; // Default to thin marker
-let toolPreview: ToolPreview | null = new ToolPreview(0, 0, currentThickness);
+let toolPreview: ToolPreview | Sticker | null = new ToolPreview(0, 0, currentThickness);
+let currentSticker: string | null = null;
 
 // Function to display all paths and preview
 function drawPaths() {
@@ -120,22 +150,43 @@ thickMarkerButton.addEventListener("click", () => {
   updateToolFeedback(thickMarkerButton);
 });
 
-// Function to start drawing
-canvas.addEventListener("mousedown", (e) => {
-  drawing = true;
-  currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
-  paths.push(currentLine);
-  redoStack.length = 0; // Clear redo stack when new drawing starts
-});
+// Sticker buttons
+document.querySelectorAll(".stickerButton").forEach(button => {
+    button.addEventListener("click", () => {
+      const sticker = button.getAttribute("data-sticker");
+      if (sticker) {
+        currentSticker = sticker;
+        toolPreview = new Sticker(0, 0, currentSticker, true); // Preview mode
+        canvas.dispatchEvent(new Event("drawing-changed"));
+      }
+    });
+  });
+  
+  // Function to start drawing
+  canvas.addEventListener("mousedown", (e) => {
+    drawing = true;
+    
+    if (currentSticker) {
+      const sticker = new Sticker(e.offsetX, e.offsetY, currentSticker, false); // Place mode
+      paths.push(sticker);
+      currentSticker = null;
+      toolPreview = null;
+    } else {
+      currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
+      paths.push(currentLine);
+      redoStack.length = 0; // Clear redo stack when new drawing starts
+    }
+    
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  });
 
 // Function to record points while drawing
 canvas.addEventListener("mousemove", (e) => {
-  if (drawing) {
-    currentLine?.drag(e.offsetX, e.offsetY);
-  } else {
-    toolPreview?.move(e.offsetX, e.offsetY);
+  if (drawing && currentLine) {
+    currentLine.drag(e.offsetX, e.offsetY);
+  } else if (!drawing && toolPreview) {
+    toolPreview.move(e.offsetX, e.offsetY);
   }
-  // Dispatch a custom event to update drawing
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
