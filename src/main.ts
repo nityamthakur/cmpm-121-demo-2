@@ -10,6 +10,8 @@ document.title = APP_NAME;
 appContainer.innerHTML = ` 
   <h1>${APP_NAME}</h1> 
   <canvas id="artCanvas" width="256" height="256"></canvas>
+  <button id="thinMarker">Thin Marker</button>
+  <button id="thickMarker">Thick Marker</button>
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
   <button id="clearButton">Clear</button>
@@ -21,9 +23,11 @@ interface Drawable {
 
 class MarkerLine implements Drawable {
   private points: { x: number; y: number }[] = [];
+  private thickness: number;
 
-  constructor(startX: number, startY: number) {
+  constructor(startX: number, startY: number, thickness: number) {
     this.points.push({ x: startX, y: startY });
+    this.thickness = thickness;
   }
 
   drag(x: number, y: number) {
@@ -34,6 +38,7 @@ class MarkerLine implements Drawable {
     if (this.points.length < 2) return;
 
     ctx.beginPath();
+    ctx.lineWidth = this.thickness;
     ctx.moveTo(this.points[0].x, this.points[0].y);
 
     this.points.forEach(point => ctx.lineTo(point.x, point.y));
@@ -49,20 +54,44 @@ let drawing = false;
 const paths: Drawable[] = [];
 const redoStack: Drawable[] = [];
 let currentLine: MarkerLine | null = null;
+let currentThickness: number = 2; // Default to thin marker
 
 // Function to display all paths
 function drawPaths() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = "black";
-  ctx.lineWidth = 2;
 
   paths.forEach(path => path.display(ctx));
 }
 
+// Update selected tool feedback
+function updateToolFeedback(selectedButton: HTMLButtonElement) {
+  document.querySelectorAll("button").forEach(button => {
+    button.classList.remove("selectedTool");
+  });
+  selectedButton.classList.add("selectedTool");
+}
+
+// Tool buttons
+const thinMarkerButton = document.querySelector<HTMLButtonElement>("#thinMarker")!;
+const thickMarkerButton = document.querySelector<HTMLButtonElement>("#thickMarker")!;
+
+// Thin marker
+thinMarkerButton.addEventListener("click", () => {
+  currentThickness = 2;
+  updateToolFeedback(thinMarkerButton);
+});
+
+// Thick marker
+thickMarkerButton.addEventListener("click", () => {
+  currentThickness = 5;
+  updateToolFeedback(thickMarkerButton);
+});
+
 // Function to start drawing
 canvas.addEventListener("mousedown", (e) => {
   drawing = true;
-  currentLine = new MarkerLine(e.offsetX, e.offsetY);
+  currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
   paths.push(currentLine);
   redoStack.length = 0; // Clear redo stack when new drawing starts
 });
