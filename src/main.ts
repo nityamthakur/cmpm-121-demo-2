@@ -16,32 +16,55 @@ appContainer.innerHTML = `
 const canvas = document.querySelector<HTMLCanvasElement>("#artCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
+const paths: { x: number, y: number }[][] = []; // Stores arrays of points for each path
+
+// Function to draw paths from the stored points
+function drawPaths() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 2;
+
+  paths.forEach(path => {
+    ctx.beginPath();
+    path.forEach((point, index) => {
+      if (index === 0) {
+        ctx.moveTo(point.x, point.y);
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    });
+    ctx.stroke();
+    ctx.closePath();
+  });
+}
 
 // Function to start drawing
 canvas.addEventListener("mousedown", (e) => {
   drawing = true;
-  ctx.beginPath();
-  ctx.moveTo(e.offsetX, e.offsetY);
+  paths.push([{ x: e.offsetX, y: e.offsetY }]);
 });
 
-// Function to draw
+// Function to record points while drawing
 canvas.addEventListener("mousemove", (e) => {
   if (drawing) {
-    ctx.lineTo(e.offsetX, e.offsetY);
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    const currentPath = paths[paths.length - 1];
+    currentPath.push({ x: e.offsetX, y: e.offsetY });
+    // Dispatch a custom event to update drawing
+    canvas.dispatchEvent(new Event("drawing-changed"));
   }
 });
 
 // Function to stop drawing
 canvas.addEventListener("mouseup", () => {
   drawing = false;
-  ctx.closePath();
 });
+
+// Observer for the custom "drawing-changed" event
+canvas.addEventListener("drawing-changed", drawPaths);
 
 // Handle clear button click
 const clearButton = document.querySelector<HTMLButtonElement>("#clearButton")!;
 clearButton.addEventListener("click", () => {
+  paths.length = 0; // Clear all paths
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
