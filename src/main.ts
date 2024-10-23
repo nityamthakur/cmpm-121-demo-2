@@ -48,6 +48,31 @@ class MarkerLine implements Drawable {
   }
 }
 
+class ToolPreview implements Drawable {
+  private x: number;
+  private y: number;
+  private thickness: number;
+
+  constructor(x: number, y: number, thickness: number) {
+    this.x = x;
+    this.y = y;
+    this.thickness = thickness;
+  }
+
+  move(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+
+  display(ctx: CanvasRenderingContext2D): void {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.fill();
+    ctx.closePath();
+  }
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#artCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
@@ -55,13 +80,18 @@ const paths: Drawable[] = [];
 const redoStack: Drawable[] = [];
 let currentLine: MarkerLine | null = null;
 let currentThickness: number = 2; // Default to thin marker
+let toolPreview: ToolPreview | null = new ToolPreview(0, 0, currentThickness);
 
-// Function to display all paths
+// Function to display all paths and preview
 function drawPaths() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = "black";
 
   paths.forEach(path => path.display(ctx));
+
+  if (!drawing && toolPreview) {
+    toolPreview.display(ctx);
+  }
 }
 
 // Update selected tool feedback
@@ -79,12 +109,14 @@ const thickMarkerButton = document.querySelector<HTMLButtonElement>("#thickMarke
 // Thin marker
 thinMarkerButton.addEventListener("click", () => {
   currentThickness = 2;
+  toolPreview = new ToolPreview(0, 0, currentThickness);
   updateToolFeedback(thinMarkerButton);
 });
 
 // Thick marker
 thickMarkerButton.addEventListener("click", () => {
   currentThickness = 5;
+  toolPreview = new ToolPreview(0, 0, currentThickness);
   updateToolFeedback(thickMarkerButton);
 });
 
@@ -100,9 +132,11 @@ canvas.addEventListener("mousedown", (e) => {
 canvas.addEventListener("mousemove", (e) => {
   if (drawing) {
     currentLine?.drag(e.offsetX, e.offsetY);
-    // Dispatch a custom event to update drawing
-    canvas.dispatchEvent(new Event("drawing-changed"));
+  } else {
+    toolPreview?.move(e.offsetX, e.offsetY);
   }
+  // Dispatch a custom event to update drawing
+  canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 // Function to stop drawing
