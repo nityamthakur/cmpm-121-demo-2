@@ -15,10 +15,20 @@ appContainer.innerHTML = `
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
   <button id="clearButton">Clear</button>
-  <button class="stickerButton" data-sticker="😀">Sticker 😀</button>
-  <button class="stickerButton" data-sticker="⭐">Sticker ⭐</button>
-  <button class="stickerButton" data-sticker="🎉">Sticker 🎉</button>
+  <button id="customStickerButton">Custom Sticker</button>
+  <div id="stickerContainer"></div>
 `;
+
+interface StickerData {
+  label: string;
+  emoji: string;
+}
+
+const stickers: StickerData[] = [
+  { label: "Sticker 😀", emoji: "😀" },
+  { label: "Sticker ⭐", emoji: "⭐" },
+  { label: "Sticker 🎉", emoji: "🎉" },
+];
 
 interface Drawable {
   display(ctx: CanvasRenderingContext2D): void;
@@ -77,30 +87,30 @@ class ToolPreview implements Drawable {
 }
 
 class Sticker implements Drawable {
-    private x: number;
-    private y: number;
-    private sticker: string;
-    private isPreview: boolean;
-  
-    constructor(x: number, y: number, sticker: string, isPreview: boolean = false) {
-      this.x = x;
-      this.y = y;
-      this.sticker = sticker;
-      this.isPreview = isPreview;
-    }
-  
-    move(x: number, y: number) {
-      this.x = x;
-      this.y = y;
-    }
-  
-    display(ctx: CanvasRenderingContext2D): void {
-      ctx.font = "24px sans-serif";
-      ctx.globalAlpha = this.isPreview ? 0.3 : 1; // Apply opacity only for preview
-      ctx.fillText(this.sticker, this.x, this.y);
-      ctx.globalAlpha = 1; // Reset opacity
-    }
+  private x: number;
+  private y: number;
+  private emoji: string;
+  private isPreview: boolean;
+
+  constructor(x: number, y: number, emoji: string, isPreview: boolean = false) {
+    this.x = x;
+    this.y = y;
+    this.emoji = emoji;
+    this.isPreview = isPreview;
   }
+
+  move(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+
+  display(ctx: CanvasRenderingContext2D): void {
+    ctx.font = "24px sans-serif";
+    ctx.globalAlpha = this.isPreview ? 0.3 : 1;
+    ctx.fillText(this.emoji, this.x, this.y);
+    ctx.globalAlpha = 1;
+  }
+}
 
 const canvas = document.querySelector<HTMLCanvasElement>("#artCanvas")!;
 const ctx = canvas.getContext("2d")!;
@@ -108,7 +118,7 @@ let drawing = false;
 const paths: Drawable[] = [];
 const redoStack: Drawable[] = [];
 let currentLine: MarkerLine | null = null;
-let currentThickness: number = 2; // Default to thin marker
+let currentThickness: number = 2;
 let toolPreview: ToolPreview | Sticker | null = new ToolPreview(0, 0, currentThickness);
 let currentSticker: string | null = null;
 
@@ -150,35 +160,51 @@ thickMarkerButton.addEventListener("click", () => {
   updateToolFeedback(thickMarkerButton);
 });
 
-// Sticker buttons
-document.querySelectorAll(".stickerButton").forEach(button => {
+// Function to create sticker buttons
+function createStickerButtons() {
+  const stickerContainer = document.querySelector<HTMLDivElement>("#stickerContainer")!;
+  stickerContainer.innerHTML = "";
+  stickers.forEach(stickerData => {
+    const button = document.createElement("button");
+    button.textContent = stickerData.label;
     button.addEventListener("click", () => {
-      const sticker = button.getAttribute("data-sticker");
-      if (sticker) {
-        currentSticker = sticker;
-        toolPreview = new Sticker(0, 0, currentSticker, true); // Preview mode
-        canvas.dispatchEvent(new Event("drawing-changed"));
-      }
+      currentSticker = stickerData.emoji;
+      toolPreview = new Sticker(0, 0, currentSticker, true);
+      canvas.dispatchEvent(new Event("drawing-changed"));
     });
+    stickerContainer.appendChild(button);
   });
+}
+
+createStickerButtons();
+
+// Custom sticker button
+const customStickerButton = document.querySelector<HTMLButtonElement>("#customStickerButton")!;
+customStickerButton.addEventListener("click", () => {
+  const customEmoji = prompt("Custom sticker text", "🧽");
+  if (customEmoji) {
+    stickers.push({ label: `Sticker ${customEmoji}`, emoji: customEmoji });
+    createStickerButtons();
+  }
+});
+
+// Function to start drawing
+canvas.addEventListener("mousedown", (e) => {
+  drawing = true;
   
-  // Function to start drawing
-  canvas.addEventListener("mousedown", (e) => {
-    drawing = true;
-    
-    if (currentSticker) {
-      const sticker = new Sticker(e.offsetX, e.offsetY, currentSticker, false); // Place mode
-      paths.push(sticker);
-      currentSticker = null;
-      toolPreview = null;
-    } else {
-      currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
-      paths.push(currentLine);
-      redoStack.length = 0; // Clear redo stack when new drawing starts
-    }
-    
-    canvas.dispatchEvent(new Event("drawing-changed"));
-  });
+  if (currentSticker) {
+    const sticker = new Sticker(e.offsetX, e.offsetY, currentSticker, false);
+    paths.push(sticker);
+    currentSticker = null;
+    toolPreview = null;
+  } else {
+    currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
+    paths.push(currentLine);
+    redoStack.length = 0;
+  }
+  
+  canvas.dispatchEvent(new Event("drawing-changed"));
+});
 
 // Function to record points while drawing
 canvas.addEventListener("mousemove", (e) => {
@@ -202,8 +228,8 @@ canvas.addEventListener("drawing-changed", drawPaths);
 // Handle clear button click
 const clearButton = document.querySelector<HTMLButtonElement>("#clearButton")!;
 clearButton.addEventListener("click", () => {
-  paths.length = 0; // Clear all paths
-  redoStack.length = 0; // Clear redo stack as well
+  paths.length = 0;
+  redoStack.length = 0;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
