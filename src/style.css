@@ -50,16 +50,23 @@ button {
   font-family: inherit;
   background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
+  margin: 0.5em;
 }
 
 button:hover {
   border-color: #646cff;
+  background-color: #333333;
 }
 
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+.selectedTool {
+  background-color: #646cff;
+  color: white;
 }
 
 @media (prefers-color-scheme: light) {
@@ -73,7 +80,7 @@ button:focus-visible {
   }
 
   button {
-    background-color: #f9f9f9;
+    background-color: #e9e9e9;
   }
 }
 

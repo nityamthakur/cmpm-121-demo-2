@@ -10,32 +10,32 @@ document.title = APP_NAME;
 appContainer.innerHTML = ` 
   <h1>${APP_NAME}</h1>
   <canvas id="artCanvas" width="256" height="256"></canvas>
-  <button id="thinMarker">Thin Marker</button>
-  <button id="thickMarker">Thick Marker</button>
+  <button id="thinTool">Fine Tool</button>
+  <button id="thickTool">Bold Tool</button>
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
   <button id="clearButton">Clear</button>
-  <button id="customStickerButton">Custom Sticker</button>
+  <button id="customEmojiButton">Custom Emoji</button>
   <button id="exportButton">Export</button>
-  <div id="stickerContainer"></div>
+  <div id="emojiContainer"></div>
 `;
 
-interface StickerData {
+interface EmojiData {
   label: string;
   emoji: string;
 }
 
-const stickers: StickerData[] = [
-  { label: "Sticker 😀", emoji: "😀" },
-  { label: "Sticker ⭐", emoji: "⭐" },
-  { label: "Sticker 🎉", emoji: "🎉" },
+const emojis: EmojiData[] = [
+  { label: "Emoji 😄", emoji: "😄" },
+  { label: "Emoji ✨", emoji: "✨" },
+  { label: "Emoji 🌟", emoji: "🌟" },
 ];
 
 interface Drawable {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
-class MarkerLine implements Drawable {
+class Line implements Drawable {
   private points: { x: number; y: number }[] = [];
   private thickness: number;
 
@@ -87,7 +87,7 @@ class ToolPreview implements Drawable {
   }
 }
 
-class Sticker implements Drawable {
+class Emoji implements Drawable {
   private x: number;
   private y: number;
   private emoji: string;
@@ -106,10 +106,9 @@ class Sticker implements Drawable {
   }
 
   display(ctx: CanvasRenderingContext2D): void {
-    ctx.font = "24px sans-serif";
-    ctx.globalAlpha = this.isPreview ? 0.3 : 1;
+    ctx.font = "32px sans-serif"; // Adjust emoji size
+    ctx.fillStyle = this.isPreview ? "rgba(0, 0, 0, 0.3)" : "black";
     ctx.fillText(this.emoji, this.x, this.y);
-    ctx.globalAlpha = 1;
   }
 }
 
@@ -118,10 +117,10 @@ const ctx = canvas.getContext("2d")!;
 let drawing = false;
 const paths: Drawable[] = [];
 const redoStack: Drawable[] = [];
-let currentLine: MarkerLine | null = null;
-let currentThickness: number = 2;
-let toolPreview: ToolPreview | Sticker | null = new ToolPreview(0, 0, currentThickness);
-let currentSticker: string | null = null;
+let currentLine: Line | null = null;
+let currentThickness: number = 3; // Fine tool
+let toolPreview: ToolPreview | Emoji | null = new ToolPreview(0, 0, currentThickness);
+let currentEmoji: string | null = null;
 
 // Function to display all paths and preview
 function drawPaths() {
@@ -144,48 +143,48 @@ function updateToolFeedback(selectedButton: HTMLButtonElement) {
 }
 
 // Tool buttons
-const thinMarkerButton = document.querySelector<HTMLButtonElement>("#thinMarker")!;
-const thickMarkerButton = document.querySelector<HTMLButtonElement>("#thickMarker")!;
+const fineToolButton = document.querySelector<HTMLButtonElement>("#thinTool")!;
+const boldToolButton = document.querySelector<HTMLButtonElement>("#thickTool")!;
 
-// Thin marker
-thinMarkerButton.addEventListener("click", () => {
-  currentThickness = 2;
+// Fine tool
+fineToolButton.addEventListener("click", () => {
+  currentThickness = 3;
   toolPreview = new ToolPreview(0, 0, currentThickness);
-  updateToolFeedback(thinMarkerButton);
+  updateToolFeedback(fineToolButton);
 });
 
-// Thick marker
-thickMarkerButton.addEventListener("click", () => {
-  currentThickness = 5;
+// Bold tool
+boldToolButton.addEventListener("click", () => {
+  currentThickness = 10;
   toolPreview = new ToolPreview(0, 0, currentThickness);
-  updateToolFeedback(thickMarkerButton);
+  updateToolFeedback(boldToolButton);
 });
 
-// Function to create sticker buttons
-function createStickerButtons() {
-  const stickerContainer = document.querySelector<HTMLDivElement>("#stickerContainer")!;
-  stickerContainer.innerHTML = "";
-  stickers.forEach(stickerData => {
+// Function to create emoji buttons
+function createEmojiButtons() {
+  const emojiContainer = document.querySelector<HTMLDivElement>("#emojiContainer")!;
+  emojiContainer.innerHTML = "";
+  emojis.forEach(emojiData => {
     const button = document.createElement("button");
-    button.textContent = stickerData.label;
+    button.textContent = emojiData.label;
     button.addEventListener("click", () => {
-      currentSticker = stickerData.emoji;
-      toolPreview = new Sticker(0, 0, currentSticker, true);
+      currentEmoji = emojiData.emoji;
+      toolPreview = new Emoji(0, 0, currentEmoji, true);
       canvas.dispatchEvent(new Event("drawing-changed"));
     });
-    stickerContainer.appendChild(button);
+    emojiContainer.appendChild(button);
   });
 }
 
-createStickerButtons();
+createEmojiButtons();
 
-// Custom sticker button
-const customStickerButton = document.querySelector<HTMLButtonElement>("#customStickerButton")!;
-customStickerButton.addEventListener("click", () => {
-  const customEmoji = prompt("Custom sticker text", "🧽");
+// Custom emoji button
+const customEmojiButton = document.querySelector<HTMLButtonElement>("#customEmojiButton")!;
+customEmojiButton.addEventListener("click", () => {
+  const customEmoji = prompt("Custom emoji text", "🧽");
   if (customEmoji) {
-    stickers.push({ label: `Sticker ${customEmoji}`, emoji: customEmoji });
-    createStickerButtons();
+    emojis.push({ label: `Emoji ${customEmoji}`, emoji: customEmoji });
+    createEmojiButtons();
   }
 });
 
@@ -193,13 +192,13 @@ customStickerButton.addEventListener("click", () => {
 canvas.addEventListener("mousedown", (e) => {
   drawing = true;
   
-  if (currentSticker) {
-    const sticker = new Sticker(e.offsetX, e.offsetY, currentSticker, false);
-    paths.push(sticker);
-    currentSticker = null;
+  if (currentEmoji) {
+    const emoji = new Emoji(e.offsetX, e.offsetY, currentEmoji, false);
+    paths.push(emoji);
+    currentEmoji = null;
     toolPreview = null;
   } else {
-    currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
+    currentLine = new Line(e.offsetX, e.offsetY, currentThickness);
     paths.push(currentLine);
     redoStack.length = 0;
   }
@@ -261,14 +260,10 @@ exportButton.addEventListener("click", () => {
   exportCanvas.width = 1024;
   exportCanvas.height = 1024;
   const exportCtx = exportCanvas.getContext("2d")!;
-  
-  // Scale to 4x the size
+  exportCtx.fillStyle = "white";
+  exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
   exportCtx.scale(4, 4);
-  
-  // Draw paths on the larger canvas
   paths.forEach(path => path.display(exportCtx));
-  
-  // Create a download link for the PNG
   const anchor = document.createElement("a");
   anchor.href = exportCanvas.toDataURL("image/png");
   anchor.download = "sketchpad.png";
