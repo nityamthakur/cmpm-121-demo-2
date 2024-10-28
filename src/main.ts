@@ -12,6 +12,7 @@ appContainer.innerHTML = `
   <canvas id="artCanvas" width="256" height="256"></canvas>
   <button id="thinTool">Fine Tool</button>
   <button id="thickTool">Bold Tool</button>
+  <input type="range" id="colorRotationSlider" min="0" max="360" value="0">
   <button id="undoButton">Undo</button>
   <button id="redoButton">Redo</button>
   <button id="clearButton">Clear</button>
@@ -38,10 +39,12 @@ interface Drawable {
 class Line implements Drawable {
   private points: { x: number; y: number }[] = [];
   private thickness: number;
+  private color: string;
 
-  constructor(startX: number, startY: number, thickness: number) {
+  constructor(startX: number, startY: number, thickness: number, color: string) {
     this.points.push({ x: startX, y: startY });
     this.thickness = thickness;
+    this.color = color;
   }
 
   drag(x: number, y: number) {
@@ -53,6 +56,7 @@ class Line implements Drawable {
 
     ctx.beginPath();
     ctx.lineWidth = this.thickness;
+    ctx.strokeStyle = this.color;
     ctx.moveTo(this.points[0].x, this.points[0].y);
 
     this.points.forEach(point => ctx.lineTo(point.x, point.y));
@@ -66,11 +70,13 @@ class ToolPreview implements Drawable {
   private x: number;
   private y: number;
   private thickness: number;
+  private color: string;
 
-  constructor(x: number, y: number, thickness: number) {
+  constructor(x: number, y: number, thickness: number, color: string) {
     this.x = x;
     this.y = y;
     this.thickness = thickness;
+    this.color = color;
   }
 
   move(x: number, y: number) {
@@ -81,7 +87,7 @@ class ToolPreview implements Drawable {
   display(ctx: CanvasRenderingContext2D): void {
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.fillStyle = this.color;
     ctx.fill();
     ctx.closePath();
   }
@@ -92,11 +98,13 @@ class Emoji implements Drawable {
   private y: number;
   private emoji: string;
   private isPreview: boolean;
+  private rotation: number;
 
-  constructor(x: number, y: number, emoji: string, isPreview: boolean = false) {
+  constructor(x: number, y: number, emoji: string, rotation: number, isPreview: boolean = false) {
     this.x = x;
     this.y = y;
     this.emoji = emoji;
+    this.rotation = rotation;
     this.isPreview = isPreview;
   }
 
@@ -106,9 +114,15 @@ class Emoji implements Drawable {
   }
 
   display(ctx: CanvasRenderingContext2D): void {
-    ctx.font = "32px sans-serif"; // Adjust emoji size
-    ctx.fillStyle = this.isPreview ? "rgba(0, 0, 0, 0.3)" : "black";
-    ctx.fillText(this.emoji, this.x, this.y);
+    ctx.save(); // Save the current state
+    ctx.translate(this.x, this.y);
+    ctx.rotate((this.rotation * Math.PI) / 180);
+    ctx.font = "32px sans-serif";
+    ctx.fillStyle = "black";
+    ctx.globalAlpha = this.isPreview ? 0.3 : 1;
+    ctx.fillText(this.emoji, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.restore(); // Restore to previous state
   }
 }
 
@@ -118,20 +132,45 @@ let drawing = false;
 const paths: Drawable[] = [];
 const redoStack: Drawable[] = [];
 let currentLine: Line | null = null;
-let currentThickness: number = 3; // Fine tool
-let toolPreview: ToolPreview | Emoji | null = new ToolPreview(0, 0, currentThickness);
+let currentThickness: number = 3;
+let currentColor: string = "black";
+let currentRotation: number = 0;
+let toolPreview: ToolPreview | Emoji | null = new ToolPreview(0, 0, currentThickness, currentColor);
 let currentEmoji: string | null = null;
+
+// Slider for color or rotation
+const colorRotationSlider = document.querySelector<HTMLInputElement>("#colorRotationSlider")!;
+colorRotationSlider.addEventListener("input", () => {
+  const value = parseInt(colorRotationSlider.value);
+  if (currentEmoji) {
+    currentRotation = value;
+  } else {
+    currentColor = `hsl(${value}, 100%, 50%)`;
+  }
+  updateToolPreview();
+});
 
 // Function to display all paths and preview
 function drawPaths() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = "black";
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   paths.forEach(path => path.display(ctx));
 
   if (!drawing && toolPreview) {
     toolPreview.display(ctx);
   }
+}
+
+// Update tool preview
+function updateToolPreview() {
+  if (currentEmoji) {
+    toolPreview = new Emoji(0, 0, currentEmoji, currentRotation, true);
+  } else {
+    toolPreview = new ToolPreview(0, 0, currentThickness, currentColor);
+  }
+  drawPaths();
 }
 
 // Update selected tool feedback
@@ -149,14 +188,16 @@ const boldToolButton = document.querySelector<HTMLButtonElement>("#thickTool")!;
 // Fine tool
 fineToolButton.addEventListener("click", () => {
   currentThickness = 3;
-  toolPreview = new ToolPreview(0, 0, currentThickness);
+  currentColor = `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
+  updateToolPreview();
   updateToolFeedback(fineToolButton);
 });
 
 // Bold tool
 boldToolButton.addEventListener("click", () => {
   currentThickness = 10;
-  toolPreview = new ToolPreview(0, 0, currentThickness);
+  currentColor = `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
+  updateToolPreview();
   updateToolFeedback(boldToolButton);
 });
 
@@ -169,7 +210,8 @@ function createEmojiButtons() {
     button.textContent = emojiData.label;
     button.addEventListener("click", () => {
       currentEmoji = emojiData.emoji;
-      toolPreview = new Emoji(0, 0, currentEmoji, true);
+      currentRotation = Math.floor(Math.random() * 360);
+      updateToolPreview();
       canvas.dispatchEvent(new Event("drawing-changed"));
     });
     emojiContainer.appendChild(button);
@@ -193,12 +235,12 @@ canvas.addEventListener("mousedown", (e) => {
   drawing = true;
   
   if (currentEmoji) {
-    const emoji = new Emoji(e.offsetX, e.offsetY, currentEmoji, false);
+    const emoji = new Emoji(e.offsetX, e.offsetY, currentEmoji, currentRotation, false);
     paths.push(emoji);
     currentEmoji = null;
     toolPreview = null;
   } else {
-    currentLine = new Line(e.offsetX, e.offsetY, currentThickness);
+    currentLine = new Line(e.offsetX, e.offsetY, currentThickness, currentColor);
     paths.push(currentLine);
     redoStack.length = 0;
   }
