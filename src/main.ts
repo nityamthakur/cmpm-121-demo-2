@@ -16,6 +16,7 @@ appContainer.innerHTML = `
   <button id="redoButton">Redo</button>
   <button id="clearButton">Clear</button>
   <button id="customStickerButton">Custom Sticker</button>
+  <button id="exportButton">Export</button>
   <div id="stickerContainer"></div>
 `;
 
@@ -251,4 +252,25 @@ redoButton.addEventListener("click", () => {
     paths.push(lastRedonePath!);
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
+});
+
+// Export button
+const exportButton = document.querySelector<HTMLButtonElement>("#exportButton")!;
+exportButton.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+  const exportCtx = exportCanvas.getContext("2d")!;
+  
+  // Scale to 4x the size
+  exportCtx.scale(4, 4);
+  
+  // Draw paths on the larger canvas
+  paths.forEach(path => path.display(exportCtx));
+  
+  // Create a download link for the PNG
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  anchor.click();
 });
