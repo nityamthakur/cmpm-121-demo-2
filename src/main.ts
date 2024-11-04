@@ -1,12 +1,7 @@
 import "./style.css";
-
 const APP_NAME = "Sticker Sketchpad";
 const appContainer = document.querySelector<HTMLDivElement>("#app")!;
-
-// Set the document title
 document.title = APP_NAME;
-
-// Insert UI elements
 appContainer.innerHTML = ` 
   <h1>${APP_NAME}</h1>
   <canvas id="artCanvas" width="256" height="256"></canvas>
@@ -20,70 +15,56 @@ appContainer.innerHTML = `
   <button id="exportButton">Export</button>
   <div id="emojiContainer"></div>
 `;
-
 interface EmojiData {
   label: string;
   emoji: string;
 }
-
 const emojis: EmojiData[] = [
   { label: "Emoji 😄", emoji: "😄" },
   { label: "Emoji ✨", emoji: "✨" },
   { label: "Emoji 🌟", emoji: "🌟" },
 ];
-
 interface Drawable {
   display(ctx: CanvasRenderingContext2D): void;
 }
-
 class Line implements Drawable {
   private points: { x: number; y: number }[] = [];
   private thickness: number;
   private color: string;
-
   constructor(startX: number, startY: number, thickness: number, color: string) {
     this.points.push({ x: startX, y: startY });
     this.thickness = thickness;
     this.color = color;
   }
-
   drag(x: number, y: number) {
     this.points.push({ x, y });
   }
-
   display(ctx: CanvasRenderingContext2D): void {
     if (this.points.length < 2) return;
-
     ctx.beginPath();
     ctx.lineWidth = this.thickness;
     ctx.strokeStyle = this.color;
     ctx.moveTo(this.points[0].x, this.points[0].y);
-
     this.points.forEach(point => ctx.lineTo(point.x, point.y));
-
     ctx.stroke();
     ctx.closePath();
   }
 }
-
 class ToolPreview implements Drawable {
   private x: number;
   private y: number;
   private thickness: number;
   private color: string;
-
   constructor(x: number, y: number, thickness: number, color: string) {
     this.x = x;
     this.y = y;
     this.thickness = thickness;
     this.color = color;
   }
-
   move(x: number, y: number) {
     this.x = x;
     this.y = y;
   }
-
   display(ctx: CanvasRenderingContext2D): void {
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
@@ -92,14 +73,12 @@ class ToolPreview implements Drawable {
     ctx.closePath();
   }
 }
-
 class Emoji implements Drawable {
   private x: number;
   private y: number;
   private emoji: string;
   private isPreview: boolean;
   private rotation: number;
-
   constructor(x: number, y: number, emoji: string, rotation: number, isPreview: boolean = false) {
     this.x = x;
     this.y = y;
@@ -107,14 +86,12 @@ class Emoji implements Drawable {
     this.rotation = rotation;
     this.isPreview = isPreview;
   }
-
   move(x: number, y: number) {
     this.x = x;
     this.y = y;
   }
-
   display(ctx: CanvasRenderingContext2D): void {
-    ctx.save(); // Save the current state
+    ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate((this.rotation * Math.PI) / 180);
     ctx.font = "32px sans-serif";
@@ -122,10 +99,9 @@ class Emoji implements Drawable {
     ctx.globalAlpha = this.isPreview ? 0.3 : 1;
     ctx.fillText(this.emoji, 0, 0);
     ctx.globalAlpha = 1;
-    ctx.restore(); // Restore to previous state
+    ctx.restore();
   }
 }
-
 const canvas = document.querySelector<HTMLCanvasElement>("#artCanvas")!;
 const ctx = canvas.getContext("2d")!;
 let drawing = false;
@@ -138,6 +114,11 @@ let currentRotation: number = 0;
 let toolPreview: ToolPreview | Emoji | null = new ToolPreview(0, 0, currentThickness, currentColor);
 let currentEmoji: string | null = null;
 
+// Function to generate random HSL color
+function getRandomHSLColor(): string {
+  return `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
+}
+
 // Slider for color or rotation
 const colorRotationSlider = document.querySelector<HTMLInputElement>("#colorRotationSlider")!;
 colorRotationSlider.addEventListener("input", () => {
@@ -149,20 +130,16 @@ colorRotationSlider.addEventListener("input", () => {
   }
   updateToolPreview();
 });
-
 // Function to display all paths and preview
 function drawPaths() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
   paths.forEach(path => path.display(ctx));
-
   if (!drawing && toolPreview) {
     toolPreview.display(ctx);
   }
 }
-
 // Update tool preview
 function updateToolPreview() {
   if (currentEmoji) {
@@ -172,7 +149,6 @@ function updateToolPreview() {
   }
   drawPaths();
 }
-
 // Update selected tool feedback
 function updateToolFeedback(selectedButton: HTMLButtonElement) {
   document.querySelectorAll("button").forEach(button => {
@@ -180,27 +156,23 @@ function updateToolFeedback(selectedButton: HTMLButtonElement) {
   });
   selectedButton.classList.add("selectedTool");
 }
-
 // Tool buttons
 const fineToolButton = document.querySelector<HTMLButtonElement>("#thinTool")!;
 const boldToolButton = document.querySelector<HTMLButtonElement>("#thickTool")!;
-
 // Fine tool
 fineToolButton.addEventListener("click", () => {
   currentThickness = 3;
-  currentColor = `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
+  currentColor = getRandomHSLColor();
   updateToolPreview();
   updateToolFeedback(fineToolButton);
 });
-
 // Bold tool
 boldToolButton.addEventListener("click", () => {
   currentThickness = 10;
-  currentColor = `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
+  currentColor = getRandomHSLColor();
   updateToolPreview();
   updateToolFeedback(boldToolButton);
 });
-
 // Function to create emoji buttons
 function createEmojiButtons() {
   const emojiContainer = document.querySelector<HTMLDivElement>("#emojiContainer")!;
@@ -208,18 +180,21 @@ function createEmojiButtons() {
   emojis.forEach(emojiData => {
     const button = document.createElement("button");
     button.textContent = emojiData.label;
-    button.addEventListener("click", () => {
-      currentEmoji = emojiData.emoji;
+    emojiContainer.appendChild(button);
+  });
+
+  emojiContainer.addEventListener("click", (event) => {
+    const target = event.target as HTMLButtonElement;
+    const emoji = emojis.find(e => e.label === target.textContent);
+    if (emoji) {
+      currentEmoji = emoji.emoji;
       currentRotation = Math.floor(Math.random() * 360);
       updateToolPreview();
       canvas.dispatchEvent(new Event("drawing-changed"));
-    });
-    emojiContainer.appendChild(button);
+    }
   });
 }
-
 createEmojiButtons();
-
 // Custom emoji button
 const customEmojiButton = document.querySelector<HTMLButtonElement>("#customEmojiButton")!;
 customEmojiButton.addEventListener("click", () => {
@@ -229,7 +204,6 @@ customEmojiButton.addEventListener("click", () => {
     createEmojiButtons();
   }
 });
-
 // Function to start drawing
 canvas.addEventListener("mousedown", (e) => {
   drawing = true;
@@ -247,7 +221,6 @@ canvas.addEventListener("mousedown", (e) => {
   
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
-
 // Function to record points while drawing
 canvas.addEventListener("mousemove", (e) => {
   if (drawing && currentLine) {
@@ -257,16 +230,13 @@ canvas.addEventListener("mousemove", (e) => {
   }
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
-
 // Function to stop drawing
 canvas.addEventListener("mouseup", () => {
   drawing = false;
   currentLine = null;
 });
-
 // Observer for the custom "drawing-changed" event
 canvas.addEventListener("drawing-changed", drawPaths);
-
 // Handle clear button click
 const clearButton = document.querySelector<HTMLButtonElement>("#clearButton")!;
 clearButton.addEventListener("click", () => {
@@ -274,7 +244,6 @@ clearButton.addEventListener("click", () => {
   redoStack.length = 0;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
-
 // Handle undo button click
 const undoButton = document.querySelector<HTMLButtonElement>("#undoButton")!;
 undoButton.addEventListener("click", () => {
@@ -284,7 +253,6 @@ undoButton.addEventListener("click", () => {
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
 });
-
 // Handle redo button click
 const redoButton = document.querySelector<HTMLButtonElement>("#redoButton")!;
 redoButton.addEventListener("click", () => {
@@ -294,20 +262,11 @@ redoButton.addEventListener("click", () => {
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
 });
-
 // Export button
 const exportButton = document.querySelector<HTMLButtonElement>("#exportButton")!;
 exportButton.addEventListener("click", () => {
-  const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = 1024;
-  exportCanvas.height = 1024;
-  const exportCtx = exportCanvas.getContext("2d")!;
-  exportCtx.fillStyle = "white";
-  exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-  exportCtx.scale(4, 4);
-  paths.forEach(path => path.display(exportCtx));
   const anchor = document.createElement("a");
-  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.href = canvas.toDataURL("image/png");
   anchor.download = "sketchpad.png";
   anchor.click();
 });
